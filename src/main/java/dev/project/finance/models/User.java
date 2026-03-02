@@ -2,12 +2,7 @@ package dev.project.finance.models;
 
 import java.time.LocalDateTime;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -26,14 +21,18 @@ public class User {
     private Long id;
 
     @Column(nullable = false)
-    private String name;
+    private String nome;
 
     @Column(nullable = false, unique = true)
     private String email;
 
     @Column(nullable = false)
-    private String password;
+    private String senha;
 
-    @Column(name = "created_at")
+    @Column(nullable = false)
+    @Enumerated(EnumType.STRING)
+    private Roles role;
+
+    @Column(name = "criado_em")
     private LocalDateTime createdAt;
 }
