@@ -4,6 +4,7 @@ import dev.project.finance.models.Roles;
 
 public record UserSummary(
         Long id,
+        String nome,
         String email,
-        String role
+        Roles role
 ) {}
