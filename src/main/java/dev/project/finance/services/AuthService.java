@@ -2,6 +2,7 @@ package dev.project.finance.services;
 
 import dev.project.finance.dtos.LoginRequest;
 import dev.project.finance.dtos.LoginResponse;
+import dev.project.finance.dtos.UserLogin;
 import dev.project.finance.dtos.UserSummary;
 import dev.project.finance.models.User;
 import dev.project.finance.repositories.UserRepository;
@@ -37,12 +38,12 @@ public class AuthService {
         String token = jwtService.generateToken(user);
 
         // 4) Montar summary (dados mínimos pro front)
-        UserSummary summary = new UserSummary(
+        UserLogin login = new UserLogin(
                 user.getId(),
                 user.getEmail(),
-                user.getRole().name()
+                user.getRole()
         );
         // 5) Retornar resposta do login
-        return new LoginResponse(token, "Bearer", 3600L, summary);
+        return new LoginResponse(token, "Bearer", 3600L, login);
     }
 }

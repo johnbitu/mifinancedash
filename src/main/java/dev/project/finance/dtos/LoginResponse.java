@@ -4,5 +4,5 @@ public record LoginResponse(
         String accessToken,
         String refreshToken,
         Long expiresIn,
-        UserSummary user
+        UserLogin user
 ) {}
