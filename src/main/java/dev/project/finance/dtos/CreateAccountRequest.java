@@ -18,5 +18,8 @@ public record CreateAccountRequest(
 
         @NotNull(message = "O saldo inicial é obrigatório")
         @DecimalMin(value = "0.0", inclusive = true, message = "O saldo inicial não pode ser negativo")
-        BigDecimal saldoInicial
+        BigDecimal saldoInicial,
+
+        @NotNull(message = "Informar se está ativo é obrigatório")
+        Boolean ativo
 ) {}

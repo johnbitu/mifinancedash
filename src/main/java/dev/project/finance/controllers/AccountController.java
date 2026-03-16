@@ -1,9 +1,11 @@
 package dev.project.finance.controllers;
 
+import dev.project.finance.dtos.AccountSummary;
 import dev.project.finance.dtos.CreateAccountRequest;
-import dev.project.finance.models.Account;
 import dev.project.finance.services.AccountService;
+import dev.project.finance.configs.SecurityUtils;
 import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -12,37 +14,46 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/accounts")
+@RequiredArgsConstructor
 public class AccountController {
 
     private final AccountService accountService;
+    private final SecurityUtils securityUtils;
 
-    public AccountController(AccountService accountService) {
-        this.accountService = accountService;
-    }
-
-    @PostMapping("/create")
-    public ResponseEntity<Account> createAccount(
-            @RequestHeader("X-User-Id") Long userId,
+    @PostMapping
+    public ResponseEntity<AccountSummary> criar(
             @RequestBody @Valid CreateAccountRequest request
     ) {
-        Account account = accountService.create(request, userId);
-        return ResponseEntity.status(HttpStatus.CREATED).body(account);
+        Long userId = securityUtils.getUsuarioAutenticadoId();
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(accountService.create(request, userId));
     }
 
     @GetMapping
-    public ResponseEntity<List<Account>> findAllAccountsByUser(
-            @RequestHeader("X-User-Id") Long userId
-    ) {
-        List<Account> accounts = accountService.findAllByUserId(userId);
-        return ResponseEntity.ok(accounts);
+    public ResponseEntity<List<AccountSummary>> listarPorUsuario() {
+        Long userId = securityUtils.getUsuarioAutenticadoId();
+        return ResponseEntity.ok(accountService.findAllByUserId(userId));
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Account> findAccountById(
+    public ResponseEntity<AccountSummary> buscarPorId(@PathVariable Long id) {
+        Long userId = securityUtils.getUsuarioAutenticadoId();
+        return ResponseEntity.ok(accountService.findByIdAndUserId(id, userId));
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<AccountSummary> atualizar(
             @PathVariable Long id,
-            @RequestHeader("X-User-Id") Long userId
+            @RequestBody @Valid CreateAccountRequest request
     ) {
-        Account account = accountService.findByIdAndUserId(id, userId);
-        return ResponseEntity.ok(account);
+        Long userId = securityUtils.getUsuarioAutenticadoId();
+        return ResponseEntity.ok(accountService.update(id, userId, request));
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> desativar(@PathVariable Long id) {
+        Long userId = securityUtils.getUsuarioAutenticadoId();
+        accountService.deactivate(id, userId);
+        return ResponseEntity.noContent().build();
     }
 }

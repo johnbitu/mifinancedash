@@ -1,69 +1,89 @@
 package dev.project.finance.services;
 
+import dev.project.finance.dtos.AccountSummary;
 import dev.project.finance.dtos.CreateAccountRequest;
 import dev.project.finance.models.Account;
 import dev.project.finance.models.User;
 import dev.project.finance.repositories.AccountRepository;
 import dev.project.finance.repositories.UserRepository;
 import jakarta.transaction.Transactional;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
+@RequiredArgsConstructor
 public class AccountService {
 
     private final AccountRepository accountRepository;
     private final UserRepository userRepository;
 
-    public AccountService(AccountRepository accountRepository,
-                          UserRepository userRepository) {
-        this.accountRepository = accountRepository;
-        this.userRepository = userRepository;
-    }
-
-    public Account create(CreateAccountRequest request, Long userId){
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("Usuário não encontrado"));
+    public AccountSummary create(CreateAccountRequest request, Long userId) {
+        User user = buscarUsuarioPorId(userId);
 
         Account account = Account.builder()
                 .nome(request.nome())
                 .tipo(request.tipo())
                 .saldoInicial(request.saldoInicial())
+                .ativo(true)
+                .criadoEm(LocalDateTime.now())
                 .user(user)
                 .build();
 
-
-        return accountRepository.save(account);
+        return toSummary(accountRepository.save(account));
     }
 
-    public List<Account> findAllByUserId(Long userId) {
-        return accountRepository.findByUserId(userId);
+    public List<AccountSummary> findAllByUserId(Long userId) {
+        return accountRepository.findByUserId(userId)
+                .stream()
+                .map(this::toSummary)
+                .toList();
     }
 
-    public Account findByIdAndUserId(Long accountId, Long userId) {
-        return accountRepository.findByIdAndUserId(accountId, userId)
-                .orElseThrow(() -> new RuntimeException("Conta não encontrada"));
+    public AccountSummary findByIdAndUserId(Long accountId, Long userId) {
+        return toSummary(buscarContaPorIdEUsuario(accountId, userId));
     }
 
     @Transactional
-    public Account update(Long accountId, Long userId, CreateAccountRequest request) {
-        Account account = accountRepository.findByIdAndUserId(accountId, userId)
-                .orElseThrow(() -> new RuntimeException("Conta não encontrada"));
+    public AccountSummary update(Long accountId, Long userId, CreateAccountRequest request) {
+        Account account = buscarContaPorIdEUsuario(accountId, userId);
 
         account.setNome(request.nome());
         account.setTipo(request.tipo());
         account.setSaldoInicial(request.saldoInicial());
 
-        return accountRepository.save(account);
+        return toSummary(accountRepository.save(account));
     }
 
     @Transactional
     public void deactivate(Long accountId, Long userId) {
-        Account account = accountRepository.findByIdAndUserId(accountId, userId)
-                .orElseThrow(() -> new RuntimeException("Conta não encontrada"));
-
+        Account account = buscarContaPorIdEUsuario(accountId, userId);
         account.setAtivo(false);
         accountRepository.save(account);
+    }
+
+    // — Métodos privados de suporte —
+
+    private User buscarUsuarioPorId(Long userId) {
+        return userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("Usuário não encontrado"));
+    }
+
+    private Account buscarContaPorIdEUsuario(Long accountId, Long userId) {
+        return accountRepository.findByIdAndUserId(accountId, userId)
+                .orElseThrow(() -> new RuntimeException("Conta não encontrada"));
+    }
+
+    public AccountSummary toSummary(Account account) {
+        return new AccountSummary(
+                account.getId(),
+                account.getNome(),
+                account.getTipo(),
+                account.getSaldoInicial(),
+                account.getAtivo(),
+                account.getCriadoEm()
+        );
     }
 }
