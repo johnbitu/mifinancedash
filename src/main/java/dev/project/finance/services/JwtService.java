@@ -36,6 +36,10 @@ public class JwtService {
         return extractAllClaims(token).getSubject();
     }
 
+    public Long extractUserId(String token) {
+        return extractAllClaims(token).get("userId", Long.class);
+    }
+
     public boolean isTokenValid(String token) {
         return !extractAllClaims(token).getExpiration().before(new Date());
     }
