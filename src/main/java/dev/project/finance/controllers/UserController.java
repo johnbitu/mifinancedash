@@ -18,6 +18,7 @@ public class UserController {
 
     private final UserService userService;
 
+    @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/users")
     public ResponseEntity<List<UserSummary>> findAll() {
         return ResponseEntity.ok(userService.findAll());
