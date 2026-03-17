@@ -7,6 +7,7 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
@@ -14,52 +15,93 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Component
 public class RateLimitFilter extends OncePerRequestFilter {
 
-    // Mapa em memória: IP → Bucket. Em produção, substituir por Redis.
-    private final ConcurrentHashMap<String, Bucket> buckets = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, BucketState> buckets = new ConcurrentHashMap<>();
 
-    private Bucket criarBucketParaIp() {
-        // 5 tentativas por minuto por IP
-        Bandwidth limite = Bandwidth.classic(5, Refill.intervally(5, Duration.ofMinutes(1)));
-        return Bucket.builder().addLimit(limite).build();
-    }
+    @Value("${security.trust-proxy:false}")
+    private boolean trustProxy;
+
+    @Value("${security.rate-limit.max-attempts:5}")
+    private long maxAttempts;
+
+    @Value("${security.rate-limit.window-seconds:60}")
+    private long windowSeconds;
+
+    @Value("${security.rate-limit.cache-ttl-minutes:10}")
+    private long cacheTtlMinutes;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
                                     HttpServletResponse response,
-                                    FilterChain filterChain)
-            throws ServletException, IOException {
+                                    FilterChain filterChain) throws ServletException, IOException {
 
-        // Aplica rate limit apenas no login
-        if (!request.getRequestURI().equals("/auth/login")) {
+        if (!"/auth/login".equals(request.getRequestURI())) {
             filterChain.doFilter(request, response);
             return;
         }
 
-        String ip = resolverIp(request);
-        Bucket bucket = buckets.computeIfAbsent(ip, k -> criarBucketParaIp());
+        cleanupExpiredBuckets();
 
-        if (bucket.tryConsume(1)) {
+        String ip = resolverIp(request);
+        BucketState state = buckets.compute(ip, (key, current) -> {
+            if (current == null || current.isExpired(cacheTtlMinutes)) {
+                return new BucketState(criarBucketParaIp());
+            }
+            current.touch();
+            return current;
+        });
+
+        if (state.bucket.tryConsume(1)) {
             filterChain.doFilter(request, response);
-        } else {
-            response.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
-            response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-            response.getWriter().write("""
-                    {"error": "Muitas tentativas. Tente novamente em 1 minuto."}
-                    """);
+            return;
         }
+
+        response.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
+        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+        response.getWriter().write("{\"error\":\"Muitas tentativas. Tente novamente em 1 minuto.\"}");
+    }
+
+    private Bucket criarBucketParaIp() {
+        Bandwidth limite = Bandwidth.classic(maxAttempts, Refill.intervally(maxAttempts, Duration.ofSeconds(windowSeconds)));
+        return Bucket.builder().addLimit(limite).build();
     }
 
     private String resolverIp(HttpServletRequest request) {
-        // Considera proxy reverso (nginx, load balancer)
+        if (!trustProxy) {
+            return request.getRemoteAddr();
+        }
+
         String forwarded = request.getHeader("X-Forwarded-For");
         if (forwarded != null && !forwarded.isBlank()) {
             return forwarded.split(",")[0].trim();
         }
         return request.getRemoteAddr();
+    }
+
+    private void cleanupExpiredBuckets() {
+        buckets.entrySet().removeIf(entry -> entry.getValue().isExpired(cacheTtlMinutes));
+    }
+
+    private static class BucketState {
+        private final Bucket bucket;
+        private Instant lastAccess;
+
+        private BucketState(Bucket bucket) {
+            this.bucket = bucket;
+            this.lastAccess = Instant.now();
+        }
+
+        private void touch() {
+            this.lastAccess = Instant.now();
+        }
+
+        private boolean isExpired(long ttlMinutes) {
+            return lastAccess.isBefore(Instant.now().minus(Duration.ofMinutes(ttlMinutes)));
+        }
     }
 }

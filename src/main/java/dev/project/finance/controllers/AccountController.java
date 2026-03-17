@@ -2,6 +2,7 @@ package dev.project.finance.controllers;
 
 import dev.project.finance.dtos.AccountSummary;
 import dev.project.finance.dtos.CreateAccountRequest;
+import dev.project.finance.dtos.UpdateAccountRequest;
 import dev.project.finance.services.AccountService;
 import dev.project.finance.configs.SecurityUtils;
 import jakarta.validation.Valid;
@@ -46,7 +47,7 @@ public class AccountController {
     @PutMapping("/{id}")
     public ResponseEntity<AccountSummary> atualizar(
             @PathVariable Long id,
-            @RequestBody @Valid CreateAccountRequest request
+            @RequestBody @Valid UpdateAccountRequest request
     ) {
         Long userId = securityUtils.getUsuarioAutenticadoId();
         return ResponseEntity.ok(accountService.update(id, userId, request));

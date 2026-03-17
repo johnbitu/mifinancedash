@@ -1,10 +1,15 @@
 package dev.project.finance.services;
 
-import dev.project.finance.dtos.*;
+import dev.project.finance.dtos.LoginRequest;
+import dev.project.finance.dtos.LoginResponse;
+import dev.project.finance.dtos.RefreshRequest;
+import dev.project.finance.dtos.RefreshResponse;
+import dev.project.finance.dtos.UserLogin;
 import dev.project.finance.exceptions.CredenciaisInvalidasException;
 import dev.project.finance.models.RefreshToken;
 import dev.project.finance.models.User;
 import dev.project.finance.repositories.UserRepository;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -18,13 +23,20 @@ public class AuthService {
     private final JwtService jwtService;
     private final RefreshTokenService refreshTokenService;
     private final AuditService auditService;
+    private final long jwtExpirationInMillis;
 
-    public AuthService(UserRepository userRepository, PasswordEncoder passwordEncoder, JwtService jwtService, RefreshTokenService refreshTokenService, AuditService auditService) {
+    public AuthService(UserRepository userRepository,
+                       PasswordEncoder passwordEncoder,
+                       JwtService jwtService,
+                       RefreshTokenService refreshTokenService,
+                       AuditService auditService,
+                       @Value("${jwt.expiration}") long jwtExpirationInMillis) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
         this.refreshTokenService = refreshTokenService;
         this.auditService = auditService;
+        this.jwtExpirationInMillis = jwtExpirationInMillis;
     }
 
     public LoginResponse login(LoginRequest request) {
@@ -35,10 +47,9 @@ public class AuthService {
                 .orElse(false);
 
         if (!credenciaisValidas) {
-            // Registra tentativa falha — userId null pois pode ser email inexistente
             auditService.registrar("LOGIN_FALHA", null, "N/A", false,
                     "Tentativa com email: " + request.email());
-            throw new CredenciaisInvalidasException("Credenciais inválidas");
+            throw new CredenciaisInvalidasException("Credenciais invalidas");
         }
 
         User user = usuarioOpt.get();
@@ -47,12 +58,21 @@ public class AuthService {
         String accessToken = jwtService.generateToken(user);
         RefreshToken refreshToken = refreshTokenService.gerar(user);
         UserLogin login = new UserLogin(user.getId(), user.getEmail(), user.getRole());
-        return new LoginResponse(accessToken, refreshToken.getToken(), 3600L, login);
+        return new LoginResponse(accessToken, refreshToken.getToken(), jwtExpirationInMillis / 1000, login);
     }
 
     public RefreshResponse renovar(RefreshRequest request) {
-        RefreshToken refreshToken = refreshTokenService.validar(request.refreshToken());
-        String novoAccessToken = jwtService.generateToken(refreshToken.getUser());
-        return new RefreshResponse(novoAccessToken, "Bearer", 3600L);
+        RefreshToken refreshAtual = refreshTokenService.validar(request.refreshToken());
+        refreshTokenService.revogar(refreshAtual);
+
+        String novoAccessToken = jwtService.generateToken(refreshAtual.getUser());
+        RefreshToken novoRefreshToken = refreshTokenService.gerar(refreshAtual.getUser());
+
+        return new RefreshResponse(
+                novoAccessToken,
+                novoRefreshToken.getToken(),
+                "Bearer",
+                jwtExpirationInMillis / 1000
+        );
     }
 }
