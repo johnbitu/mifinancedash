@@ -2,8 +2,14 @@ package dev.project.finance.services;
 
 import dev.project.finance.dtos.CreateTransactionRequest;
 import dev.project.finance.dtos.TransactionSummary;
+import dev.project.finance.exceptions.AccountNotFoundException;
+import dev.project.finance.exceptions.CategoryNotFoundException;
 import dev.project.finance.exceptions.TransactionNotFoundException;
-import dev.project.finance.models.*;
+import dev.project.finance.models.Account;
+import dev.project.finance.models.Category;
+import dev.project.finance.models.Transaction;
+import dev.project.finance.models.TransactionType;
+import dev.project.finance.models.User;
 import dev.project.finance.repositories.AccountRepository;
 import dev.project.finance.repositories.CategoryRepository;
 import dev.project.finance.repositories.TransactionRepository;
@@ -24,7 +30,6 @@ public class TransactionService {
     public TransactionSummary create(CreateTransactionRequest request, User usuarioAutenticado) {
         Account account = buscarContaPorIdEUsuario(request.accountId(), usuarioAutenticado.getId());
 
-        // Categoria é opcional na transação
         Category category = null;
         if (request.categoryId() != null) {
             category = buscarCategoriaPorIdEUsuario(request.categoryId(), usuarioAutenticado.getId());
@@ -60,7 +65,6 @@ public class TransactionService {
         Transaction transaction = buscarTransacaoPorIdEUsuario(transactionId, usuarioAutenticado.getId());
 
         Account account = buscarContaPorIdEUsuario(request.accountId(), usuarioAutenticado.getId());
-
         Category category = null;
         if (request.categoryId() != null) {
             category = buscarCategoriaPorIdEUsuario(request.categoryId(), usuarioAutenticado.getId());
@@ -82,27 +86,19 @@ public class TransactionService {
         transactionRepository.delete(transaction);
     }
 
-    // — Métodos privados de suporte —
-
     private Transaction buscarTransacaoPorIdEUsuario(Long transactionId, Long userId) {
         return transactionRepository.findByIdAndUserId(transactionId, userId)
-                .orElseThrow(() -> new TransactionNotFoundException(
-                        "Transação não encontrada: id=" + transactionId
-                ));
+                .orElseThrow(() -> new TransactionNotFoundException("Transacao nao encontrada: id=" + transactionId));
     }
 
     private Account buscarContaPorIdEUsuario(Long accountId, Long userId) {
         return accountRepository.findByIdAndUserId(accountId, userId)
-                .orElseThrow(() -> new RuntimeException(
-                        "Conta não encontrada: id=" + accountId
-                ));
+                .orElseThrow(() -> new AccountNotFoundException("Conta nao encontrada: id=" + accountId));
     }
 
     private Category buscarCategoriaPorIdEUsuario(Long categoryId, Long userId) {
         return categoryRepository.findByIdAndUserId(categoryId, userId)
-                .orElseThrow(() -> new RuntimeException(
-                        "Categoria não encontrada: id=" + categoryId
-                ));
+                .orElseThrow(() -> new CategoryNotFoundException("Categoria nao encontrada: id=" + categoryId));
     }
 
     public TransactionSummary toSummary(Transaction transaction) {

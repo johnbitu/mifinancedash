@@ -1,19 +1,17 @@
 package dev.project.finance.services;
 
-import java.time.LocalDateTime;
-
+import dev.project.finance.dtos.RegisterRequest;
+import dev.project.finance.dtos.RegisterResponse;
+import dev.project.finance.exceptions.EmailAlreadyInUseException;
 import dev.project.finance.models.Roles;
+import dev.project.finance.models.User;
+import dev.project.finance.repositories.UserRepository;
+import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
-import dev.project.finance.repositories.UserRepository;
-import lombok.RequiredArgsConstructor;
-import dev.project.finance.dtos.*;
-import dev.project.finance.exceptions.EmailAlreadyInUseException;
-import dev.project.finance.models.User;
-// import dev.project.finance.configs.SecurityConfig;
+import java.time.LocalDateTime;
 
-// RegisterService.java
 @Service
 @RequiredArgsConstructor
 public class RegisterService {
@@ -32,7 +30,7 @@ public class RegisterService {
 
     private void validateEmailAvailability(String email) {
         if (userRepository.existsByEmail(email)) {
-            throw new EmailAlreadyInUseException("Esse email já está registrado: " + email);
+            throw new EmailAlreadyInUseException("Esse email ja esta registrado: " + email);
         }
     }
 
@@ -41,11 +39,18 @@ public class RegisterService {
                 .nome(request.nome())
                 .email(request.email())
                 .senha(passwordEncoder.encode(request.senha()))
-                .role(request.role())
-                .createdAt(LocalDateTime.now()).build();
+                .role(Roles.USUARIO)
+                .createdAt(LocalDateTime.now())
+                .build();
     }
 
     private RegisterResponse toResponse(User user) {
-        return new RegisterResponse(user.getId(), user.getNome(), user.getEmail(), user.getRole(), user.getCreatedAt());
+        return new RegisterResponse(
+                user.getId(),
+                user.getNome(),
+                user.getEmail(),
+                user.getRole(),
+                user.getCreatedAt()
+        );
     }
 }

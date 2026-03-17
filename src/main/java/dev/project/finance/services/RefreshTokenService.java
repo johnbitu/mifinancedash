@@ -16,12 +16,10 @@ import java.util.UUID;
 public class RefreshTokenService {
 
     private static final long EXPIRACAO_DIAS = 7L;
-
     private final RefreshTokenRepository refreshTokenRepository;
 
     @Transactional
     public RefreshToken gerar(User user) {
-        // Revoga todos os tokens anteriores do usuário (rotação de token)
         refreshTokenRepository.revogarTodosPorUsuario(user.getId());
 
         RefreshToken refreshToken = RefreshToken.builder()
@@ -36,9 +34,9 @@ public class RefreshTokenService {
 
     public RefreshToken validar(String token) {
         RefreshToken refreshToken = refreshTokenRepository.findByToken(token)
-                .orElseThrow(() -> new TokenInvalidoException("Refresh token não encontrado"));
+                .orElseThrow(() -> new TokenInvalidoException("Refresh token nao encontrado"));
 
-        if (refreshToken.getRevogado()) {
+        if (Boolean.TRUE.equals(refreshToken.getRevogado())) {
             throw new TokenInvalidoException("Refresh token revogado");
         }
 
@@ -47,5 +45,11 @@ public class RefreshTokenService {
         }
 
         return refreshToken;
+    }
+
+    @Transactional
+    public void revogar(RefreshToken refreshToken) {
+        refreshToken.setRevogado(true);
+        refreshTokenRepository.save(refreshToken);
     }
 }

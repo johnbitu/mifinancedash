@@ -1,5 +1,6 @@
 package dev.project.finance.configs;
 
+import dev.project.finance.exceptions.UnauthorizedException;
 import dev.project.finance.models.User;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
@@ -13,7 +14,7 @@ public class SecurityUtils {
                 .getPrincipal();
 
         if (!(principal instanceof User user)) {
-            throw new RuntimeException("Usuário não autenticado");
+            throw new UnauthorizedException("Usuario nao autenticado");
         }
 
         return user;

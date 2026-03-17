@@ -7,7 +7,7 @@ import jakarta.validation.constraints.Size;
 
 import java.math.BigDecimal;
 
-public record CreateAccountRequest(
+public record UpdateAccountRequest(
         @NotBlank(message = "O nome da conta e obrigatorio")
         @Size(max = 100, message = "O nome da conta deve ter no maximo 100 caracteres")
         String nome,
@@ -18,6 +18,9 @@ public record CreateAccountRequest(
 
         @NotNull(message = "O saldo inicial e obrigatorio")
         @DecimalMin(value = "0.0", inclusive = true, message = "O saldo inicial nao pode ser negativo")
-        BigDecimal saldoInicial
+        BigDecimal saldoInicial,
+
+        @NotNull
+        Boolean ativo
 ) {
 }

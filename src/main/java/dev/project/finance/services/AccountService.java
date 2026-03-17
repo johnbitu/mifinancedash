@@ -2,6 +2,9 @@ package dev.project.finance.services;
 
 import dev.project.finance.dtos.AccountSummary;
 import dev.project.finance.dtos.CreateAccountRequest;
+import dev.project.finance.dtos.UpdateAccountRequest;
+import dev.project.finance.exceptions.AccountNotFoundException;
+import dev.project.finance.exceptions.UserNotFoundException;
 import dev.project.finance.models.Account;
 import dev.project.finance.models.User;
 import dev.project.finance.repositories.AccountRepository;
@@ -47,12 +50,13 @@ public class AccountService {
     }
 
     @Transactional
-    public AccountSummary update(Long accountId, Long userId, CreateAccountRequest request) {
+    public AccountSummary update(Long accountId, Long userId, UpdateAccountRequest request) {
         Account account = buscarContaPorIdEUsuario(accountId, userId);
 
         account.setNome(request.nome());
         account.setTipo(request.tipo());
         account.setSaldoInicial(request.saldoInicial());
+        account.setAtivo(request.ativo());
 
         return toSummary(accountRepository.save(account));
     }
@@ -64,16 +68,14 @@ public class AccountService {
         accountRepository.save(account);
     }
 
-    // — Métodos privados de suporte —
-
     private User buscarUsuarioPorId(Long userId) {
         return userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("Usuário não encontrado"));
+                .orElseThrow(() -> new UserNotFoundException("Usuario nao encontrado"));
     }
 
     private Account buscarContaPorIdEUsuario(Long accountId, Long userId) {
         return accountRepository.findByIdAndUserId(accountId, userId)
-                .orElseThrow(() -> new RuntimeException("Conta não encontrada"));
+                .orElseThrow(() -> new AccountNotFoundException("Conta nao encontrada"));
     }
 
     public AccountSummary toSummary(Account account) {
