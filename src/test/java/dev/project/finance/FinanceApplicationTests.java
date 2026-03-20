@@ -11,9 +11,11 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.Map;
 
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -104,8 +106,53 @@ class FinanceApplicationTests {
         Long accountId = createAccount(ownerToken, "Carteira", "DINHEIRO", new BigDecimal("100.00"));
 
         mockMvc.perform(get("/accounts/{id}", accountId)
-                        .header("Authorization", "Bearer " + otherToken))
+                .header("Authorization", "Bearer " + otherToken))
                 .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void naoPermiteCriarTransacaoEmContaDesativada() throws Exception {
+        register("inactive-account@example.com", "Senha12345");
+        String accessToken = login("inactive-account@example.com", "Senha12345").get("accessToken").asText();
+        Long accountId = createAccount(accessToken, "Conta Inativa", "DINHEIRO", new BigDecimal("200.00"));
+
+        mockMvc.perform(delete("/accounts/{id}", accountId)
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isNoContent());
+
+        Map<String, Object> transaction = new HashMap<>();
+        transaction.put("accountId", accountId);
+        transaction.put("tipo", "RECEITA");
+        transaction.put("valor", new BigDecimal("50.00"));
+        transaction.put("descricao", "Recebimento");
+        transaction.put("dataTransacao", LocalDate.now().toString());
+
+        mockMvc.perform(post("/transactions")
+                        .header("Authorization", "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(transaction)))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void tipoTransacaoInvalidoRetorna400() throws Exception {
+        register("invalid-tipo@example.com", "Senha12345");
+        String accessToken = login("invalid-tipo@example.com", "Senha12345").get("accessToken").asText();
+        Long accountId = createAccount(accessToken, "Conta Teste", "DINHEIRO", new BigDecimal("100.00"));
+
+        Map<String, Object> transaction = new HashMap<>();
+        transaction.put("accountId", accountId);
+        transaction.put("tipo", "entrada");
+        transaction.put("valor", new BigDecimal("10.00"));
+        transaction.put("descricao", "Descricao");
+        transaction.put("dataTransacao", LocalDate.now().toString());
+
+        mockMvc.perform(post("/transactions")
+                        .header("Authorization", "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(transaction)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Tipo de transacao invalido. Valores aceitos: RECEITA ou DESPESA"));
     }
 
     private void register(String email, String senha) throws Exception {
