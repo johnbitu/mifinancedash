@@ -40,7 +40,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
                                     HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
 
-        if (!"/auth/login".equals(request.getRequestURI())) {
+        if (!isLoginRequest(request)) {
             filterChain.doFilter(request, response);
             return;
         }
@@ -64,6 +64,30 @@ public class RateLimitFilter extends OncePerRequestFilter {
         response.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         response.getWriter().write("{\"error\":\"Muitas tentativas. Tente novamente em 1 minuto.\"}");
+    }
+
+    private boolean isLoginRequest(HttpServletRequest request) {
+        if (!"POST".equalsIgnoreCase(request.getMethod())) {
+            return false;
+        }
+
+        String servletPath = request.getServletPath();
+        if (servletPath != null && !servletPath.isBlank()) {
+            return "/auth/login".equals(servletPath);
+        }
+
+        String contextPath = request.getContextPath();
+        String requestUri = request.getRequestURI();
+        if (requestUri == null) {
+            return false;
+        }
+
+        String normalizedPath = requestUri;
+        if (contextPath != null && !contextPath.isBlank() && requestUri.startsWith(contextPath)) {
+            normalizedPath = requestUri.substring(contextPath.length());
+        }
+
+        return "/auth/login".equals(normalizedPath);
     }
 
     private Bucket criarBucketParaIp() {
