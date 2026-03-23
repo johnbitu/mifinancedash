@@ -1,6 +1,7 @@
 package dev.project.finance.services;
 
 import dev.project.finance.dtos.AccountSummary;
+import dev.project.finance.dtos.AccountSummaryComSaldo;
 import dev.project.finance.dtos.CreateAccountRequest;
 import dev.project.finance.dtos.UpdateAccountRequest;
 import dev.project.finance.exceptions.AccountNotFoundException;
@@ -13,6 +14,7 @@ import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -68,6 +70,19 @@ public class AccountService {
         accountRepository.save(account);
     }
 
+    // — Método novo: retorna a conta com saldo calculado —
+
+    public AccountSummaryComSaldo findByIdComSaldo(Long accountId, Long userId) {
+        Account account = buscarContaPorIdEUsuario(accountId, userId);
+
+        BigDecimal saldoAtual = accountRepository
+                .calcularSaldoReal(accountId, userId)
+                .orElse(account.getSaldoInicial()); // fallback: sem transações = saldo inicial
+
+        return toSummaryComSaldo(account, saldoAtual);
+    }
+
+
     private User buscarUsuarioPorId(Long userId) {
         return userRepository.findById(userId)
                 .orElseThrow(() -> new UserNotFoundException("Usuario nao encontrado"));
@@ -84,6 +99,18 @@ public class AccountService {
                 account.getNome(),
                 account.getTipo(),
                 account.getSaldoInicial(),
+                account.getAtivo(),
+                account.getCriadoEm()
+        );
+    }
+
+    private AccountSummaryComSaldo toSummaryComSaldo(Account account, BigDecimal saldoAtual) {
+        return new AccountSummaryComSaldo(
+                account.getId(),
+                account.getNome(),
+                account.getTipo(),
+                account.getSaldoInicial(),
+                saldoAtual,
                 account.getAtivo(),
                 account.getCriadoEm()
         );

@@ -1,6 +1,7 @@
 package dev.project.finance.controllers;
 
 import dev.project.finance.dtos.AccountSummary;
+import dev.project.finance.dtos.AccountSummaryComSaldo;
 import dev.project.finance.dtos.CreateAccountRequest;
 import dev.project.finance.dtos.UpdateAccountRequest;
 import dev.project.finance.services.AccountService;
@@ -42,6 +43,12 @@ public class AccountController {
     public ResponseEntity<AccountSummary> buscarPorId(@PathVariable Long id) {
         Long userId = securityUtils.getUsuarioAutenticadoId();
         return ResponseEntity.ok(accountService.findByIdAndUserId(id, userId));
+    }
+
+    @GetMapping("/{id}/saldo")
+    public ResponseEntity<AccountSummaryComSaldo> buscarComSaldo(@PathVariable Long id) {
+        Long userId = securityUtils.getUsuarioAutenticadoId();
+        return ResponseEntity.ok(accountService.findByIdComSaldo(id, userId));
     }
 
     @PutMapping("/{id}")
