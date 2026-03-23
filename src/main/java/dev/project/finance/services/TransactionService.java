@@ -4,6 +4,7 @@ import dev.project.finance.dtos.CreateTransactionRequest;
 import dev.project.finance.dtos.TransactionSummary;
 import dev.project.finance.exceptions.AccountNotFoundException;
 import dev.project.finance.exceptions.CategoryNotFoundException;
+import dev.project.finance.exceptions.InvalidTransactionTypeException;
 import dev.project.finance.exceptions.TransactionNotFoundException;
 import dev.project.finance.models.Account;
 import dev.project.finance.models.Category;
@@ -36,7 +37,7 @@ public class TransactionService {
         }
 
         Transaction transaction = Transaction.builder()
-                .tipo(TransactionType.valueOf(request.tipo().toUpperCase()))
+                .tipo(parseTipoTransacao(request.tipo()))
                 .valor(request.valor())
                 .descricao(request.descricao())
                 .dataTransacao(request.dataTransacao())
@@ -70,7 +71,7 @@ public class TransactionService {
             category = buscarCategoriaPorIdEUsuario(request.categoryId(), usuarioAutenticado.getId());
         }
 
-        transaction.setTipo(TransactionType.valueOf(request.tipo().toUpperCase()));
+        transaction.setTipo(parseTipoTransacao(request.tipo()));
         transaction.setValor(request.valor());
         transaction.setDescricao(request.descricao());
         transaction.setDataTransacao(request.dataTransacao());
@@ -92,13 +93,23 @@ public class TransactionService {
     }
 
     private Account buscarContaPorIdEUsuario(Long accountId, Long userId) {
-        return accountRepository.findByIdAndUserId(accountId, userId)
+        return accountRepository.findByIdAndUserIdAndAtivoTrue(accountId, userId)
                 .orElseThrow(() -> new AccountNotFoundException("Conta nao encontrada: id=" + accountId));
     }
 
     private Category buscarCategoriaPorIdEUsuario(Long categoryId, Long userId) {
         return categoryRepository.findByIdAndUserId(categoryId, userId)
                 .orElseThrow(() -> new CategoryNotFoundException("Categoria nao encontrada: id=" + categoryId));
+    }
+
+    private TransactionType parseTipoTransacao(String tipo) {
+        try {
+            return TransactionType.valueOf(tipo.trim().toUpperCase());
+        } catch (Exception ex) {
+            throw new InvalidTransactionTypeException(
+                    "Tipo de transacao invalido. Valores aceitos: RECEITA ou DESPESA"
+            );
+        }
     }
 
     public TransactionSummary toSummary(Transaction transaction) {

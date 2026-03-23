@@ -7,6 +7,7 @@ import dev.project.finance.models.Roles;
 import dev.project.finance.models.User;
 import dev.project.finance.repositories.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -23,7 +24,12 @@ public class RegisterService {
         validateEmailAvailability(request.email());
 
         User newUser = buildUser(request);
-        User savedUser = userRepository.save(newUser);
+        User savedUser;
+        try {
+            savedUser = userRepository.saveAndFlush(newUser);
+        } catch (DataIntegrityViolationException ex) {
+            throw new EmailAlreadyInUseException("Esse email ja esta registrado: " + request.email());
+        }
 
         return toResponse(savedUser);
     }
