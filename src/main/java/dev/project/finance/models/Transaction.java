@@ -1,11 +1,22 @@
 package dev.project.finance.models;
 
-import jakarta.persistence.*;
-import lombok.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Table;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "transactions")
@@ -14,11 +25,8 @@ import java.time.LocalDateTime;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class Transaction {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+@EqualsAndHashCode(callSuper = true)
+public class Transaction extends BaseEntity {
 
     @Column(name = "tipo", nullable = false, length = 20)
     @Enumerated(EnumType.STRING)
@@ -36,9 +44,6 @@ public class Transaction {
     @Column(name = "observacao", columnDefinition = "TEXT")
     private String observacao;
 
-    @Column(name = "criado_em", nullable = false)
-    private LocalDateTime criadoEm;
-
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
@@ -51,10 +56,11 @@ public class Transaction {
     @JoinColumn(name = "category_id")
     private Category category;
 
-    @PrePersist
-    public void prePersist() {
-        if (this.criadoEm == null) {
-            this.criadoEm = LocalDateTime.now();
-        }
-    }
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "card_id")
+    private Card card;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "recurrence_id")
+    private Recurrence recurrence;
 }

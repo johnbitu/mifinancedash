@@ -1,10 +1,12 @@
 package dev.project.finance.controllers;
 
+import dev.project.finance.configs.SecurityUtils;
 import dev.project.finance.dtos.CategorySummary;
 import dev.project.finance.dtos.CreateCategoryRequest;
 import dev.project.finance.models.User;
 import dev.project.finance.services.CategoryService;
-import dev.project.finance.configs.SecurityUtils;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -18,12 +20,14 @@ import java.util.List;
 @RequestMapping("/categories")
 @RequiredArgsConstructor
 @PreAuthorize("isAuthenticated()")
+@Tag(name = "Categories")
 public class CategoryController {
 
     private final CategoryService categoryService;
     private final SecurityUtils securityUtils;
 
     @PostMapping
+    @Operation(summary = "Cria categoria")
     public ResponseEntity<CategorySummary> criar(
             @RequestBody @Valid CreateCategoryRequest request
     ) {
@@ -33,18 +37,21 @@ public class CategoryController {
     }
 
     @GetMapping
+    @Operation(summary = "Lista categorias")
     public ResponseEntity<List<CategorySummary>> listar() {
         User usuario = securityUtils.getUsuarioAutenticado();
         return ResponseEntity.ok(categoryService.findAllByUsuario(usuario));
     }
 
     @GetMapping("/{id}")
+    @Operation(summary = "Busca categoria por id")
     public ResponseEntity<CategorySummary> buscarPorId(@PathVariable Long id) {
         User usuario = securityUtils.getUsuarioAutenticado();
         return ResponseEntity.ok(categoryService.findByIdAndUsuario(id, usuario));
     }
 
     @PutMapping("/{id}")
+    @Operation(summary = "Atualiza categoria")
     public ResponseEntity<CategorySummary> atualizar(
             @PathVariable Long id,
             @RequestBody @Valid CreateCategoryRequest request
@@ -54,6 +61,7 @@ public class CategoryController {
     }
 
     @DeleteMapping("/{id}")
+    @Operation(summary = "Exclui categoria")
     public ResponseEntity<Void> deletar(@PathVariable Long id) {
         User usuario = securityUtils.getUsuarioAutenticado();
         categoryService.delete(id, usuario);

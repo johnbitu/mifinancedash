@@ -103,7 +103,7 @@ class FinanceApplicationTests {
         String ownerToken = login("owner@example.com", "Senha12345").get("accessToken").asText();
         String otherToken = login("other@example.com", "Senha12345").get("accessToken").asText();
 
-        Long accountId = createAccount(ownerToken, "Carteira", "DINHEIRO", new BigDecimal("100.00"));
+        Long accountId = createAccount(ownerToken, "Carteira", "CORRENTE", new BigDecimal("100.00"));
 
         mockMvc.perform(get("/accounts/{id}", accountId)
                 .header("Authorization", "Bearer " + otherToken))
@@ -114,7 +114,7 @@ class FinanceApplicationTests {
     void naoPermiteCriarTransacaoEmContaDesativada() throws Exception {
         register("inactive-account@example.com", "Senha12345");
         String accessToken = login("inactive-account@example.com", "Senha12345").get("accessToken").asText();
-        Long accountId = createAccount(accessToken, "Conta Inativa", "DINHEIRO", new BigDecimal("200.00"));
+        Long accountId = createAccount(accessToken, "Conta Inativa", "CORRENTE", new BigDecimal("200.00"));
 
         mockMvc.perform(delete("/accounts/{id}", accountId)
                         .header("Authorization", "Bearer " + accessToken))
@@ -138,7 +138,7 @@ class FinanceApplicationTests {
     void tipoTransacaoInvalidoRetorna400() throws Exception {
         register("invalid-tipo@example.com", "Senha12345");
         String accessToken = login("invalid-tipo@example.com", "Senha12345").get("accessToken").asText();
-        Long accountId = createAccount(accessToken, "Conta Teste", "DINHEIRO", new BigDecimal("100.00"));
+        Long accountId = createAccount(accessToken, "Conta Teste", "CORRENTE", new BigDecimal("100.00"));
 
         Map<String, Object> transaction = new HashMap<>();
         transaction.put("accountId", accountId);
@@ -152,7 +152,7 @@ class FinanceApplicationTests {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(transaction)))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message").value("Tipo de transacao invalido. Valores aceitos: RECEITA ou DESPESA"));
+                .andExpect(jsonPath("$.message").value("JSON invalido"));
     }
     private void register(String email, String senha) throws Exception {
         Map<String, Object> register = new HashMap<>();

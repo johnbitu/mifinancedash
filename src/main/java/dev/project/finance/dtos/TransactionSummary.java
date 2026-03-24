@@ -17,5 +17,9 @@ public record TransactionSummary(
         Long accountId,
         String accountNome,
         Long categoryId,
-        String categoryNome
-) {}
+        String categoryNome,
+        Long cardId,
+        String cardNome,
+        Long recurrenceId
+) {
+}

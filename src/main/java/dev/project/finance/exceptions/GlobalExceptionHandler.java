@@ -1,17 +1,23 @@
 package dev.project.finance.exceptions;
 
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.ConstraintViolationException;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.InvalidDataAccessApiUsageException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.time.LocalDateTime;
 import java.util.stream.Collectors;
 
+@Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
@@ -37,6 +43,38 @@ public class GlobalExceptionHandler {
         return buildError(HttpStatus.BAD_REQUEST, message, request.getRequestURI());
     }
 
+    @ExceptionHandler(ConstraintViolationException.class)
+    public ResponseEntity<ErrorResponse> handleConstraintViolation(
+            ConstraintViolationException ex,
+            HttpServletRequest request
+    ) {
+        return buildError(HttpStatus.BAD_REQUEST, ex.getMessage(), request.getRequestURI());
+    }
+
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<ErrorResponse> handleMethodNotAllowed(
+            HttpRequestMethodNotSupportedException ex,
+            HttpServletRequest request
+    ) {
+        return buildError(HttpStatus.METHOD_NOT_ALLOWED, "Metodo nao permitido", request.getRequestURI());
+    }
+
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<ErrorResponse> handleNotFound(
+            NoResourceFoundException ex,
+            HttpServletRequest request
+    ) {
+        return buildError(HttpStatus.NOT_FOUND, "Recurso nao encontrado", request.getRequestURI());
+    }
+
+    @ExceptionHandler(InvalidDataAccessApiUsageException.class)
+    public ResponseEntity<ErrorResponse> handleDataApiUsage(
+            InvalidDataAccessApiUsageException ex,
+            HttpServletRequest request
+    ) {
+        return buildError(HttpStatus.BAD_REQUEST, "Requisicao invalida", request.getRequestURI());
+    }
+
     @ExceptionHandler(EmailAlreadyInUseException.class)
     public ResponseEntity<ErrorResponse> handleEmailError(
             EmailAlreadyInUseException ex,
@@ -45,25 +83,13 @@ public class GlobalExceptionHandler {
         return buildError(HttpStatus.CONFLICT, ex.getMessage(), request.getRequestURI());
     }
 
-    @ExceptionHandler(CredenciaisInvalidasException.class)
-    public ResponseEntity<ErrorResponse> handleCredenciaisInvalidas(
-            CredenciaisInvalidasException ex,
-            HttpServletRequest request
-    ) {
-        return buildError(HttpStatus.UNAUTHORIZED, ex.getMessage(), request.getRequestURI());
-    }
-
-    @ExceptionHandler(TokenInvalidoException.class)
-    public ResponseEntity<ErrorResponse> handleTokenInvalido(
-            TokenInvalidoException ex,
-            HttpServletRequest request
-    ) {
-        return buildError(HttpStatus.UNAUTHORIZED, ex.getMessage(), request.getRequestURI());
-    }
-
-    @ExceptionHandler(UnauthorizedException.class)
-    public ResponseEntity<ErrorResponse> handleUnauthorized(
-            UnauthorizedException ex,
+    @ExceptionHandler({
+            CredenciaisInvalidasException.class,
+            TokenInvalidoException.class,
+            UnauthorizedException.class
+    })
+    public ResponseEntity<ErrorResponse> handleAuthErrors(
+            RuntimeException ex,
             HttpServletRequest request
     ) {
         return buildError(HttpStatus.UNAUTHORIZED, ex.getMessage(), request.getRequestURI());
@@ -77,51 +103,57 @@ public class GlobalExceptionHandler {
         return buildError(HttpStatus.FORBIDDEN, "Acesso negado", request.getRequestURI());
     }
 
-    @ExceptionHandler(AccountNotFoundException.class)
-    public ResponseEntity<ErrorResponse> handleAccountNotFound(
-            AccountNotFoundException ex,
+    @ExceptionHandler({
+            AccountNotFoundException.class,
+            CategoryNotFoundException.class,
+            TransactionNotFoundException.class,
+            UserNotFoundException.class,
+            CardNotFoundException.class,
+            InvoiceNaoEncontradaException.class,
+            GoalNotFoundException.class,
+            RecurrenceNotFoundException.class
+    })
+    public ResponseEntity<ErrorResponse> handleNotFoundDomain(
+            RuntimeException ex,
             HttpServletRequest request
     ) {
         return buildError(HttpStatus.NOT_FOUND, ex.getMessage(), request.getRequestURI());
     }
 
-    @ExceptionHandler(CategoryNotFoundException.class)
-    public ResponseEntity<ErrorResponse> handleCategoryNotFound(
-            CategoryNotFoundException ex,
+    @ExceptionHandler({
+            CardComFaturaAbertaException.class,
+            InvoiceFechadaException.class,
+            GoalNaoEditavelException.class,
+            GoalConcluidaException.class,
+            CategoryEmUsoException.class,
+            ContaEmUsoException.class
+    })
+    public ResponseEntity<ErrorResponse> handleConflict(
+            RuntimeException ex,
             HttpServletRequest request
     ) {
-        return buildError(HttpStatus.NOT_FOUND, ex.getMessage(), request.getRequestURI());
+        return buildError(HttpStatus.CONFLICT, ex.getMessage(), request.getRequestURI());
     }
 
-    @ExceptionHandler(TransactionNotFoundException.class)
-    public ResponseEntity<ErrorResponse> handleTransactionNotFound(
-            TransactionNotFoundException ex,
+    @ExceptionHandler(LimiteInsuficienteException.class)
+    public ResponseEntity<ErrorResponse> handleUnprocessable(
+            LimiteInsuficienteException ex,
             HttpServletRequest request
     ) {
-        return buildError(HttpStatus.NOT_FOUND, ex.getMessage(), request.getRequestURI());
+        return buildError(HttpStatus.UNPROCESSABLE_ENTITY, ex.getMessage(), request.getRequestURI());
     }
 
-    @ExceptionHandler(InvalidTransactionTypeException.class)
-    public ResponseEntity<ErrorResponse> handleInvalidTransactionType(
-            InvalidTransactionTypeException ex,
+    @ExceptionHandler({InvalidTransactionTypeException.class, IllegalArgumentException.class})
+    public ResponseEntity<ErrorResponse> handleBadRequest(
+            RuntimeException ex,
             HttpServletRequest request
     ) {
         return buildError(HttpStatus.BAD_REQUEST, ex.getMessage(), request.getRequestURI());
     }
 
-    @ExceptionHandler(UserNotFoundException.class)
-    public ResponseEntity<ErrorResponse> handleUserNotFound(
-            UserNotFoundException ex,
-            HttpServletRequest request
-    ) {
-        return buildError(HttpStatus.NOT_FOUND, ex.getMessage(), request.getRequestURI());
-    }
-
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<ErrorResponse> handleGenericError(
-            Exception ex,
-            HttpServletRequest request
-    ) {
+    public ResponseEntity<ErrorResponse> handleGenericError(Exception ex, HttpServletRequest request) {
+        log.error("Erro nao tratado em {}: {}", request.getRequestURI(), ex.getMessage(), ex);
         return buildError(HttpStatus.INTERNAL_SERVER_ERROR, "Erro interno no servidor", request.getRequestURI());
     }
 

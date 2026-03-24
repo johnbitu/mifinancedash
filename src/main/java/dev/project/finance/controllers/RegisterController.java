@@ -3,6 +3,8 @@ package dev.project.finance.controllers;
 import dev.project.finance.dtos.RegisterRequest;
 import dev.project.finance.dtos.RegisterResponse;
 import dev.project.finance.services.RegisterService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -15,16 +17,14 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/auth")
 @RequiredArgsConstructor
+@Tag(name = "Registro")
 public class RegisterController {
     private final RegisterService registerService;
 
-
     @PostMapping("/register")
-    public ResponseEntity<RegisterResponse> register(@RequestBody @Valid RegisterRequest request){
-
+    @Operation(summary = "Registra novo usuario")
+    public ResponseEntity<RegisterResponse> register(@RequestBody @Valid RegisterRequest request) {
         RegisterResponse response = registerService.register(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
-
     }
-
 }

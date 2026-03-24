@@ -5,6 +5,8 @@ import dev.project.finance.dtos.CreateAccountRequest;
 import dev.project.finance.dtos.UpdateAccountRequest;
 import dev.project.finance.services.AccountService;
 import dev.project.finance.configs.SecurityUtils;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -18,12 +20,14 @@ import java.util.List;
 @RequestMapping("/accounts")
 @RequiredArgsConstructor
 @PreAuthorize("isAuthenticated()")
+@Tag(name = "Accounts")
 public class AccountController {
 
     private final AccountService accountService;
     private final SecurityUtils securityUtils;
 
     @PostMapping
+    @Operation(summary = "Cria conta")
     public ResponseEntity<AccountSummary> criar(
             @RequestBody @Valid CreateAccountRequest request
     ) {
@@ -33,18 +37,21 @@ public class AccountController {
     }
 
     @GetMapping
+    @Operation(summary = "Lista contas")
     public ResponseEntity<List<AccountSummary>> listarPorUsuario() {
         Long userId = securityUtils.getUsuarioAutenticadoId();
         return ResponseEntity.ok(accountService.findAllByUserId(userId));
     }
 
     @GetMapping("/{id}")
+    @Operation(summary = "Busca conta por id")
     public ResponseEntity<AccountSummary> buscarPorId(@PathVariable Long id) {
         Long userId = securityUtils.getUsuarioAutenticadoId();
         return ResponseEntity.ok(accountService.findByIdAndUserId(id, userId));
     }
 
     @PutMapping("/{id}")
+    @Operation(summary = "Atualiza conta")
     public ResponseEntity<AccountSummary> atualizar(
             @PathVariable Long id,
             @RequestBody @Valid UpdateAccountRequest request
@@ -54,6 +61,7 @@ public class AccountController {
     }
 
     @DeleteMapping("/{id}")
+    @Operation(summary = "Desativa conta")
     public ResponseEntity<Void> desativar(@PathVariable Long id) {
         Long userId = securityUtils.getUsuarioAutenticadoId();
         accountService.deactivate(id, userId);

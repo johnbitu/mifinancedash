@@ -4,9 +4,9 @@ import dev.project.finance.exceptions.TokenInvalidoException;
 import dev.project.finance.models.RefreshToken;
 import dev.project.finance.models.User;
 import dev.project.finance.repositories.RefreshTokenRepository;
-import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -32,6 +32,7 @@ public class RefreshTokenService {
         return refreshTokenRepository.save(refreshToken);
     }
 
+    @Transactional(readOnly = true)
     public RefreshToken validar(String token) {
         RefreshToken refreshToken = refreshTokenRepository.findByToken(token)
                 .orElseThrow(() -> new TokenInvalidoException("Refresh token nao encontrado"));
@@ -51,5 +52,10 @@ public class RefreshTokenService {
     public void revogar(RefreshToken refreshToken) {
         refreshToken.setRevogado(true);
         refreshTokenRepository.save(refreshToken);
+    }
+
+    @Transactional
+    public void revogarToken(String token) {
+        refreshTokenRepository.findByToken(token).ifPresent(this::revogar);
     }
 }

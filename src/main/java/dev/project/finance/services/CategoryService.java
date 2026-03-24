@@ -2,14 +2,17 @@ package dev.project.finance.services;
 
 import dev.project.finance.dtos.CategorySummary;
 import dev.project.finance.dtos.CreateCategoryRequest;
+import dev.project.finance.exceptions.CategoryEmUsoException;
 import dev.project.finance.exceptions.CategoryNotFoundException;
 import dev.project.finance.models.Category;
 import dev.project.finance.models.User;
 import dev.project.finance.repositories.CategoryRepository;
+import dev.project.finance.repositories.RecurrenceRepository;
+import dev.project.finance.repositories.TransactionRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -17,18 +20,21 @@ import java.util.List;
 public class CategoryService {
 
     private final CategoryRepository categoryRepository;
+    private final TransactionRepository transactionRepository;
+    private final RecurrenceRepository recurrenceRepository;
 
+    @Transactional
     public CategorySummary create(CreateCategoryRequest request, User usuarioAutenticado) {
         Category category = Category.builder()
                 .nome(request.nome())
                 .tipo(request.tipo())
-                .criadoEm(LocalDateTime.now())
                 .user(usuarioAutenticado)
                 .build();
 
         return toSummary(categoryRepository.save(category));
     }
 
+    @Transactional(readOnly = true)
     public List<CategorySummary> findAllByUsuario(User usuarioAutenticado) {
         return categoryRepository.findByUserId(usuarioAutenticado.getId())
                 .stream()
@@ -36,10 +42,12 @@ public class CategoryService {
                 .toList();
     }
 
+    @Transactional(readOnly = true)
     public CategorySummary findByIdAndUsuario(Long categoryId, User usuarioAutenticado) {
         return toSummary(buscarCategoriaPorIdEUsuario(categoryId, usuarioAutenticado.getId()));
     }
 
+    @Transactional
     public CategorySummary update(Long categoryId, CreateCategoryRequest request, User usuarioAutenticado) {
         Category category = buscarCategoriaPorIdEUsuario(categoryId, usuarioAutenticado.getId());
 
@@ -49,17 +57,22 @@ public class CategoryService {
         return toSummary(categoryRepository.save(category));
     }
 
+    @Transactional
     public void delete(Long categoryId, User usuarioAutenticado) {
         Category category = buscarCategoriaPorIdEUsuario(categoryId, usuarioAutenticado.getId());
+
+        if (transactionRepository.existsByCategoryId(categoryId)
+                || recurrenceRepository.existsByCategoryIdAndAtivoTrue(categoryId)) {
+            throw new CategoryEmUsoException("Nao e possivel excluir categoria vinculada a transacoes ou recorrencias");
+        }
+
         categoryRepository.delete(category);
     }
-
-    // — Métodos privados de suporte —
 
     private Category buscarCategoriaPorIdEUsuario(Long categoryId, Long userId) {
         return categoryRepository.findByIdAndUserId(categoryId, userId)
                 .orElseThrow(() -> new CategoryNotFoundException(
-                        "Categoria não encontrada: id=" + categoryId
+                        "Categoria nao encontrada: id=" + categoryId
                 ));
     }
 

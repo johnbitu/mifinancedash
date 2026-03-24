@@ -4,16 +4,20 @@ import dev.project.finance.dtos.AccountSummary;
 import dev.project.finance.dtos.CreateAccountRequest;
 import dev.project.finance.dtos.UpdateAccountRequest;
 import dev.project.finance.exceptions.AccountNotFoundException;
+import dev.project.finance.exceptions.ContaEmUsoException;
 import dev.project.finance.exceptions.UserNotFoundException;
 import dev.project.finance.models.Account;
 import dev.project.finance.models.User;
 import dev.project.finance.repositories.AccountRepository;
+import dev.project.finance.repositories.RecurrenceRepository;
+import dev.project.finance.repositories.TransactionRepository;
 import dev.project.finance.repositories.UserRepository;
-import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
+import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 
 @Service
@@ -22,7 +26,10 @@ public class AccountService {
 
     private final AccountRepository accountRepository;
     private final UserRepository userRepository;
+    private final TransactionRepository transactionRepository;
+    private final RecurrenceRepository recurrenceRepository;
 
+    @Transactional
     public AccountSummary create(CreateAccountRequest request, Long userId) {
         User user = buscarUsuarioPorId(userId);
 
@@ -30,14 +37,15 @@ public class AccountService {
                 .nome(request.nome())
                 .tipo(request.tipo())
                 .saldoInicial(request.saldoInicial())
+                .saldoAtual(request.saldoInicial())
                 .ativo(true)
-                .criadoEm(LocalDateTime.now())
                 .user(user)
                 .build();
 
         return toSummary(accountRepository.save(account));
     }
 
+    @Transactional(readOnly = true)
     public List<AccountSummary> findAllByUserId(Long userId) {
         return accountRepository.findByUserId(userId)
                 .stream()
@@ -45,6 +53,7 @@ public class AccountService {
                 .toList();
     }
 
+    @Transactional(readOnly = true)
     public AccountSummary findByIdAndUserId(Long accountId, Long userId) {
         return toSummary(buscarContaPorIdEUsuario(accountId, userId));
     }
@@ -64,6 +73,19 @@ public class AccountService {
     @Transactional
     public void deactivate(Long accountId, Long userId) {
         Account account = buscarContaPorIdEUsuario(accountId, userId);
+
+        boolean possuiTransacoesFuturas = transactionRepository.existsByAccountIdAndDataTransacaoAfter(
+                accountId,
+                LocalDate.now()
+        );
+        if (possuiTransacoesFuturas) {
+            throw new ContaEmUsoException("Nao e possivel desativar conta com transacoes futuras vinculadas");
+        }
+
+        if (recurrenceRepository.existsByAccountIdAndAtivoTrue(accountId)) {
+            throw new ContaEmUsoException("Nao e possivel desativar conta com recorrencias ativas");
+        }
+
         account.setAtivo(false);
         accountRepository.save(account);
     }
@@ -84,6 +106,7 @@ public class AccountService {
                 account.getNome(),
                 account.getTipo(),
                 account.getSaldoInicial(),
+                account.getSaldoAtual() == null ? BigDecimal.ZERO : account.getSaldoAtual(),
                 account.getAtivo(),
                 account.getCriadoEm()
         );

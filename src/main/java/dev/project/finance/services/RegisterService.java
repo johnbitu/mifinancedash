@@ -7,11 +7,9 @@ import dev.project.finance.models.Roles;
 import dev.project.finance.models.User;
 import dev.project.finance.repositories.UserRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-
-import java.time.LocalDateTime;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
@@ -20,17 +18,12 @@ public class RegisterService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
 
+    @Transactional
     public RegisterResponse register(RegisterRequest request) {
         validateEmailAvailability(request.email());
 
         User newUser = buildUser(request);
-        User savedUser;
-        try {
-            savedUser = userRepository.saveAndFlush(newUser);
-        } catch (DataIntegrityViolationException ex) {
-            throw new EmailAlreadyInUseException("Esse email ja esta registrado: " + request.email());
-        }
-
+        User savedUser = userRepository.save(newUser);
         return toResponse(savedUser);
     }
 
@@ -46,7 +39,6 @@ public class RegisterService {
                 .email(request.email())
                 .senha(passwordEncoder.encode(request.senha()))
                 .role(Roles.USUARIO)
-                .createdAt(LocalDateTime.now())
                 .build();
     }
 
@@ -56,7 +48,7 @@ public class RegisterService {
                 user.getNome(),
                 user.getEmail(),
                 user.getRole(),
-                user.getCreatedAt()
+                user.getCriadoEm()
         );
     }
 }

@@ -8,11 +8,9 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -28,12 +26,10 @@ class RegisterServiceTest {
     private RegisterService registerService;
 
     @Test
-    void traduzViolacaoDeConstraintDeEmailParaConflito() {
+    void lancaConflitoQuandoEmailJaExiste() {
         RegisterRequest request = new RegisterRequest("Teste", "dup@example.com", "Senha12345");
 
-        when(userRepository.existsByEmail(request.email())).thenReturn(false);
-        when(passwordEncoder.encode(request.senha())).thenReturn("senha-hash");
-        when(userRepository.saveAndFlush(any())).thenThrow(new DataIntegrityViolationException("duplicate key"));
+        when(userRepository.existsByEmail(request.email())).thenReturn(true);
 
         assertThrows(EmailAlreadyInUseException.class, () -> registerService.register(request));
     }
