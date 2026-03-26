@@ -11,9 +11,12 @@ import dev.project.finance.exceptions.GoalNotFoundException;
 import dev.project.finance.models.Account;
 import dev.project.finance.models.Goal;
 import dev.project.finance.models.GoalStatus;
+import dev.project.finance.models.Transaction;
+import dev.project.finance.models.TransactionType;
 import dev.project.finance.models.User;
 import dev.project.finance.repositories.AccountRepository;
 import dev.project.finance.repositories.GoalRepository;
+import dev.project.finance.repositories.TransactionRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,6 +33,7 @@ public class GoalService {
 
     private final GoalRepository goalRepository;
     private final AccountRepository accountRepository;
+    private final TransactionRepository transactionRepository;
     private final AuditService auditService;
 
     @Transactional
@@ -39,7 +43,7 @@ public class GoalService {
 
         Goal goal = Goal.builder()
                 .user(user)
-                .account(buscarContaOpcional(request.accountId(), user.getId()))
+                .account(buscarContaObrigatoria(request.accountId(), user.getId()))
                 .nome(request.nome())
                 .descricao(request.descricao())
                 .valorAlvo(request.valorAlvo())
@@ -105,10 +109,12 @@ public class GoalService {
         Goal goal = buscarGoal(id, userId);
         validarEditavel(goal);
 
-        BigDecimal novoValor = goal.getValorAtual().add(request.valor());
+        BigDecimal valorAnterior = goal.getValorAtual();
+        BigDecimal novoValor = valorAnterior.add(request.valor());
         if (novoValor.compareTo(goal.getValorAlvo()) > 0) {
             novoValor = goal.getValorAlvo();
         }
+        BigDecimal valorDepositado = novoValor.subtract(valorAnterior);
 
         goal.setValorAtual(novoValor);
         if (goal.getValorAtual().compareTo(goal.getValorAlvo()) >= 0) {
@@ -116,8 +122,10 @@ public class GoalService {
         }
 
         Goal atualizado = goalRepository.save(goal);
+        Transaction transacao = criarTransacaoDepositoMeta(atualizado, userId, valorDepositado);
         auditService.registrar("GOAL_DEPOSITO", userId, "N/A", true,
-                "Meta " + atualizado.getId() + " recebeu deposito de " + request.valor());
+                "Meta " + atualizado.getId() + " recebeu deposito de " + valorDepositado
+                        + " e gerou transacao " + transacao.getId());
 
         return toSummary(atualizado);
     }
@@ -182,6 +190,44 @@ public class GoalService {
 
         return accountRepository.findByIdAndUserId(accountId, userId)
                 .orElseThrow(() -> new AccountNotFoundException("Conta nao encontrada"));
+    }
+
+    private Account buscarContaObrigatoria(Long accountId, Long userId) {
+        if (accountId == null) {
+            throw new IllegalArgumentException("Conta vinculada e obrigatoria na criacao da meta");
+        }
+
+        return buscarContaOpcional(accountId, userId);
+    }
+
+    private Transaction criarTransacaoDepositoMeta(Goal goal, Long userId, BigDecimal valorDepositado) {
+        if (goal.getAccount() == null) {
+            throw new IllegalArgumentException(
+                    "A meta precisa ter conta vinculada para registrar o deposito como transacao");
+        }
+
+        Account account = accountRepository.findByIdAndUserIdAndAtivoTrue(goal.getAccount().getId(), userId)
+                .orElseThrow(() -> new AccountNotFoundException("Conta vinculada a meta nao encontrada ou inativa"));
+
+        Transaction transaction = Transaction.builder()
+                .tipo(TransactionType.DESPESA)
+                .valor(valorDepositado)
+                .descricao("Aporte na meta: " + goal.getNome())
+                .dataTransacao(LocalDate.now())
+                .observacao("Deposito na meta id=" + goal.getId())
+                .user(goal.getUser())
+                .account(account)
+                .build();
+
+        Transaction saved = transactionRepository.save(transaction);
+        recalcularSaldo(account);
+        accountRepository.save(account);
+        return saved;
+    }
+
+    private void recalcularSaldo(Account account) {
+        BigDecimal somatorio = transactionRepository.somatorioPorConta(account.getId());
+        account.setSaldoAtual(account.getSaldoInicial().add(somatorio));
     }
 
     public GoalSummary toSummary(Goal goal) {
