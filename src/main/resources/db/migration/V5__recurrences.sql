@@ -22,10 +22,24 @@
 
 DO $$
 BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.tables
+        WHERE table_name = 'transactions'
+    ) AND NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'transactions' AND column_name = 'recurrence_id'
+    ) THEN
+        ALTER TABLE transactions
+            ADD COLUMN recurrence_id BIGINT;
+    END IF;
+
     IF NOT EXISTS (
         SELECT 1
         FROM pg_constraint
         WHERE conname = 'fk_transactions_recurrence'
+    ) AND EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'transactions' AND column_name = 'recurrence_id'
     ) THEN
         ALTER TABLE transactions
             ADD CONSTRAINT fk_transactions_recurrence

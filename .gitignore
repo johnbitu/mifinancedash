@@ -8,6 +8,9 @@ target/
 src/main/resources/*
 !src/main/resources/application.properties
 !src/main/resources/application.yml
+!src/main/resources/db/
+!src/main/resources/db/migration/
+!src/main/resources/db/migration/**
 
 ### STS ###
 .apt_generated

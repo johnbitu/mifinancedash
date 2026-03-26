@@ -3,6 +3,7 @@ package dev.project.finance.services;
 import dev.project.finance.dtos.CardInvoiceSummary;
 import dev.project.finance.dtos.CardSummary;
 import dev.project.finance.dtos.CreateCardRequest;
+import dev.project.finance.dtos.UpdateCardInvoiceRequest;
 import dev.project.finance.exceptions.AccountNotFoundException;
 import dev.project.finance.exceptions.CardComFaturaAbertaException;
 import dev.project.finance.exceptions.CardNotFoundException;
@@ -128,6 +129,34 @@ public class CardService {
     }
 
     @Transactional
+    public CardInvoiceSummary atualizarFatura(Long cardId, Long invoiceId, Long userId, UpdateCardInvoiceRequest request) {
+        CardInvoice invoice = cardInvoiceRepository.findByIdAndCardIdAndUserId(invoiceId, cardId, userId)
+                .orElseThrow(() -> new InvoiceNaoEncontradaException("Fatura nao encontrada"));
+
+        Integer mesReferencia = request.mesReferencia() != null ? request.mesReferencia() : invoice.getMesReferencia();
+        Integer anoReferencia = request.anoReferencia() != null ? request.anoReferencia() : invoice.getAnoReferencia();
+        validarDuplicidadeFatura(invoice, mesReferencia, anoReferencia);
+
+        invoice.setMesReferencia(mesReferencia);
+        invoice.setAnoReferencia(anoReferencia);
+
+        if (request.valorTotal() != null) {
+            invoice.setValorTotal(request.valorTotal());
+        }
+        if (request.dataVencimento() != null) {
+            invoice.setDataVencimento(request.dataVencimento());
+        }
+        if (request.status() != null) {
+            invoice.setStatus(request.status());
+        }
+
+        cardInvoiceRepository.save(invoice);
+        recalcularLimiteDisponivel(invoice.getCard());
+        cardRepository.save(invoice.getCard());
+        return toInvoiceSummary(invoice);
+    }
+
+    @Transactional
     public CardInvoiceSummary fecharFatura(Long cardId, Long invoiceId, Long userId) {
         CardInvoice invoice = cardInvoiceRepository.findByIdAndCardIdAndUserId(invoiceId, cardId, userId)
                 .orElseThrow(() -> new InvoiceNaoEncontradaException("Fatura nao encontrada"));
@@ -244,6 +273,14 @@ public class CardService {
 
         return accountRepository.findByIdAndUserIdAndAtivoTrue(accountId, userId)
                 .orElseThrow(() -> new AccountNotFoundException("Conta nao encontrada para vinculacao"));
+    }
+
+    private void validarDuplicidadeFatura(CardInvoice invoice, Integer mesReferencia, Integer anoReferencia) {
+        cardInvoiceRepository.findByCardIdAndMesReferenciaAndAnoReferencia(invoice.getCard().getId(), mesReferencia, anoReferencia)
+                .filter(existing -> !existing.getId().equals(invoice.getId()))
+                .ifPresent(existing -> {
+                    throw new IllegalArgumentException("Ja existe fatura para o cartao no mes/ano informado");
+                });
     }
 
     private CardInvoice findOrCreateInvoice(Card card, User user, LocalDate dataTransacao) {

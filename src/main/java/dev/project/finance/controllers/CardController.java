@@ -4,6 +4,7 @@ import dev.project.finance.configs.SecurityUtils;
 import dev.project.finance.dtos.CardInvoiceSummary;
 import dev.project.finance.dtos.CardSummary;
 import dev.project.finance.dtos.CreateCardRequest;
+import dev.project.finance.dtos.UpdateCardInvoiceRequest;
 import dev.project.finance.models.User;
 import dev.project.finance.services.CardService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -69,6 +70,16 @@ public class CardController {
     @Operation(summary = "Busca fatura do cartao")
     public ResponseEntity<CardInvoiceSummary> buscarFatura(@PathVariable Long id, @PathVariable Long invoiceId) {
         return ResponseEntity.ok(cardService.buscarFatura(id, invoiceId, securityUtils.getUsuarioAutenticadoId()));
+    }
+
+    @PutMapping("/{id}/invoices/{invoiceId}")
+    @Operation(summary = "Atualiza fatura")
+    public ResponseEntity<CardInvoiceSummary> atualizarFatura(
+            @PathVariable Long id,
+            @PathVariable Long invoiceId,
+            @RequestBody @Valid UpdateCardInvoiceRequest request
+    ) {
+        return ResponseEntity.ok(cardService.atualizarFatura(id, invoiceId, securityUtils.getUsuarioAutenticadoId(), request));
     }
 
     @PatchMapping("/{id}/invoices/{invoiceId}/fechar")

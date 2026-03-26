@@ -30,10 +30,24 @@ CREATE TABLE IF NOT EXISTS card_invoices (
 
 DO $$
 BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.tables
+        WHERE table_name = 'transactions'
+    ) AND NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'transactions' AND column_name = 'card_id'
+    ) THEN
+        ALTER TABLE transactions
+            ADD COLUMN card_id BIGINT;
+    END IF;
+
     IF NOT EXISTS (
         SELECT 1
         FROM pg_constraint
         WHERE conname = 'fk_transactions_card'
+    ) AND EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'transactions' AND column_name = 'card_id'
     ) THEN
         ALTER TABLE transactions
             ADD CONSTRAINT fk_transactions_card
